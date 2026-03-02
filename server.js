@@ -13,23 +13,28 @@ app.use(express.static("public"));
 
 app.use(express.json());
 
-app.post("/fetch-channel", async (req, res) => {
-  try {
-    const { channelUrl } = req.body;
+let isProcessing = false;
 
-    console.log("Received channel URL:", channelUrl);
+app.post("/fetch-channel", async (req, res) => {
+
+    if (isProcessing) {
+    return res.status(429).json({
+      error: "Another request is currently processing. Please try again in a few moments."
+    });
+  }
+
+  isProcessing = true;
+
+   try {
+    const { channelUrl } = req.body;
 
     if (!channelUrl) {
       return res.status(400).json({ error: "channelUrl is required" });
     }
 
     const channelId = await resolveChannelId(channelUrl);
-
-    console.log("Resolved channel ID:", channelId);
     const playlistId = await getUploadsPlaylist(channelId);
-    console.log("Uploads playlist ID:", playlistId);
     const videos = await getAllVideos(playlistId);
-    console.log(`Fetched ${videos.length} videos. Saving to Google Sheets...`);
 
     await saveToSheet(videos);
 
@@ -42,6 +47,9 @@ app.post("/fetch-channel", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
+
+  } finally {
+    isProcessing = false; // 🔥 ALWAYS releases lock
   }
 });
 
