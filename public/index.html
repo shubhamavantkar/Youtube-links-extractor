@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Channel Fetcher</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 40px;
+      background: #f4f4f4;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background: #333;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<h2>YouTube Channel</h2>
+
+<input type="text" id="channelUrl" placeholder="Enter YouTube Channel URL" size="50">
+<button onclick="fetchChannel()">Fetch Videos</button>
+<button onclick="loadVideos()">Refresh Table</button>
+<button onclick="downloadCSV()">Download CSV</button>
+
+<div id="status"></div>
+
+<table id="videoTable">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Link</th>
+      <th>Published</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+async function fetchChannel() {
+  const url = document.getElementById("channelUrl").value;
+
+  document.getElementById("status").innerText = "Fetching...";
+
+  const res = await fetch("/fetch-channel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channelUrl: url })
+  });
+
+  const data = await res.json();
+
+  document.getElementById("status").innerText =
+    "Fetched " + data.totalVideos + " videos.";
+
+  loadVideos();
+}
+
+async function loadVideos() {
+  const res = await fetch("/videos");
+  const data = await res.json();
+
+  const tbody = document.querySelector("#videoTable tbody");
+  tbody.innerHTML = "";
+
+  data.forEach(video => {
+    const row = `
+      <tr>
+        <td>${video.title}</td>
+        <td><a href="${video.link}" target="_blank">Watch</a></td>
+        <td>${video.publishedAt}</td>
+      </tr>
+    `;
+    tbody.innerHTML += row;
+  });
+}
+
+function downloadCSV() {
+  window.location.href = "/download-csv";
+}
+</script>
+
+</body>
+</html>
