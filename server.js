@@ -1,36 +1,40 @@
 require("dotenv").config();
+
 const express = require("express");
-const { getUploadsPlaylist, getAllVideos } = require("./services/youtubeService");
-const { saveToSheet } = require("./services/sheetsService");
-const { resolveChannelId } = require("./utils/channelResolver");
-const { getAllSheetData } = require("./services/sheetsService");
-const { Parser } = require("json2csv");
 const path = require("path");
+const { Parser } = require("json2csv");
+
+const {
+  resolveChannelId,
+  getUploadsPlaylist,
+  getAllVideos
+} = require("./services/youtubeService");
+
+const {
+  saveToSheet,
+  getAllSheetData
+} = require("./services/sheetsService");
+
 const app = express();
 
-app.use(express.static("public"));
-
-
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
 let isProcessing = false;
 
 app.post("/fetch-channel", async (req, res) => {
 
-    if (isProcessing) {
+  if (isProcessing) {
     return res.status(429).json({
-      error: "Another request is currently processing. Please try again in a few moments."
+      error: "Another request is currently processing"
     });
   }
 
   isProcessing = true;
 
-   try {
-    const { channelUrl } = req.body;
+  try {
 
-    if (!channelUrl) {
-      return res.status(400).json({ error: "channelUrl is required" });
-    }
+    const { channelUrl } = req.body;
 
     const channelId = await resolveChannelId(channelUrl);
     const playlistId = await getUploadsPlaylist(channelId);
@@ -40,58 +44,66 @@ app.post("/fetch-channel", async (req, res) => {
 
     res.json({
       success: true,
-      channelId,
       totalVideos: videos.length
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+
+    res.status(500).json({
+      error: error.message
+    });
 
   } finally {
-    isProcessing = false; // 🔥 ALWAYS releases lock
+
+    isProcessing = false;
+
   }
+
 });
 
 app.get("/videos", async (req, res) => {
-  try {
-    const rows = await getAllSheetData();
 
-    const formatted = rows.map(row => ({
-      title: row[0],
-      link: row[1],
-      publishedAt: row[2],
-    }));
+  const rows = await getAllSheetData();
 
-    res.json(formatted);
+  const formatted = rows.slice(1).map(row => ({
+    title: row[0],
+    link: row[1],
+    uploadDate: row[2],
+    views: row[3],
+    likes: row[4],
+    comments: row[5],
+    duration: row[6]
+  }));
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json(formatted);
+
 });
 
 app.get("/download-csv", async (req, res) => {
-  try {
-    const rows = await getAllSheetData();
 
-    const data = rows.map(row => ({
-      title: row[0],
-      link: row[1],
-      publishedAt: row[2],
-    }));
+  const rows = await getAllSheetData();
 
-    const parser = new Parser();
-    const csv = parser.parse(data);
+  const data = rows.slice(1).map(row => ({
+    title: row[0],
+    link: row[1],
+    uploadDate: row[2],
+    views: row[3],
+    likes: row[4],
+    comments: row[5],
+    duration: row[6]
+  }));
 
-    res.header("Content-Type", "text/csv");
-    res.attachment("videos.csv");
-    return res.send(csv);
+  const parser = new Parser();
+  const csv = parser.parse(data);
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.header("Content-Type", "text/csv");
+  res.attachment("videos.csv");
+  res.send(csv);
+
 });
 
-app.listen(process.env.PORT, () =>
-  console.log(`Server running on port ${process.env.PORT}`)
-);
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

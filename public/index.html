@@ -1,132 +1,198 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>YouTube Channel Fetcher</title>
-  <style>
-    body {
-      font-family: Arial;
-      padding: 40px;
-      background: #f4f4f4;
-    }
-    input, button {
-      padding: 10px;
-      margin: 5px 0;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-      background: white;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-    }
-    th {
-      background: #333;
-      color: white;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>YouTube Channel Video Extractor</title>
+
+<style>
+
+body{
+font-family: Arial;
+padding:40px;
+background:#f5f5f5;
+}
+
+input{
+padding:10px;
+width:400px;
+}
+
+button{
+padding:10px 15px;
+margin-left:5px;
+cursor:pointer;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+background:white;
+}
+
+th,td{
+border:1px solid #ddd;
+padding:8px;
+}
+
+th{
+background:#333;
+color:white;
+}
+
+#status{
+margin-top:10px;
+font-weight:bold;
+}
+
+.donate{
+position:fixed;
+top:15px;
+left:15px;
+background:#FFDD00;
+padding:8px 14px;
+border-radius:8px;
+text-decoration:none;
+color:black;
+font-weight:bold;
+}
+
+.guide{
+background:white;
+padding:15px;
+border-radius:8px;
+margin-bottom:20px;
+}
+
+</style>
+
 </head>
+
 <body>
 
-    <div style="display:flex; align-items:center; gap:20px;">
-  
-  <a href="https://buymeacoffee.com/avantkarsh1" target="_blank"
-     style="background:#FFDD00; color:#000; padding:10px 16px;
-            text-decoration:none; font-weight:bold;
-            border-radius:6px;">
-     ☕ Buy me a coffee
-  </a>
+<a href="https://buymeacoffee.com/avantkarsh1"
+target="_blank"
+class="donate">
+☕ Support
+</a>
+
+<h2>YouTube Channel Video Extractor</h2>
+
+<div class="guide">
+
+<h3>How to Use</h3>
+
+<ol>
+<li>Copy a YouTube channel URL</li>
+<li>Paste it below</li>
+<li>Click Fetch Videos</li>
+<li>Wait until extraction completes</li>
+<li>Download CSV if needed</li>
+</ol>
 
 </div>
-<h2>YouTube Channel</h2>
 
-  <div class="guide-container">
-  <button onclick="toggleGuide()" class="guide-btn">
-    📘 How to Extract Videos
-  </button>
+<input
+type="text"
+id="channelUrl"
+placeholder="Enter YouTube Channel URL"
+/>
 
-    <div id="guideContent" class="guide-content">
-      <ol>
-        <li>Go to the YouTube channel you want to extract.</li>
-        <li>Copy the full channel URL (example: https://www.youtube.com/@username).</li>
-        <li>Paste the URL in the input field Below.</li>
-        <li>Click <strong>Fetch Videos</strong>.</li>
-        <li>Wait until extraction completes.</li>
-        <li>Click <strong>Download CSV</strong> if you want the file.</li>
-      </ol>
-
-      <p><strong>Supported formats:</strong></p>
-      <ul>
-        <li>https://www.youtube.com/@username</li>
-        <li>https://www.youtube.com/channel/UCxxxx</li>
-        <li>https://www.youtube.com/c/customname</li>
-        <li>https://www.youtube.com/user/legacyname</li>
-      </ul>
-    </div>
-  </div>
-
-<input type="text" id="channelUrl" placeholder="Enter YouTube Channel URL" size="50">
 <button onclick="fetchChannel()">Fetch Videos</button>
 <button onclick="loadVideos()">Refresh Table</button>
 <button onclick="downloadCSV()">Download CSV</button>
 
-<div id="status"></div>
+<p id="status"></p>
 
 <table id="videoTable">
-  <thead>
-    <tr>
-      <th>Title</th>
-      <th>Link</th>
-      <th>Published</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
+
+<thead>
+<tr>
+<th>Title</th>
+<th>Video Link</th>
+<th>Upload Date</th>
+<th>Views</th>
+<th>Likes</th>
+<th>Comments</th>
+<th>Duration</th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
 </table>
 
 <script>
-async function fetchChannel() {
-  const url = document.getElementById("channelUrl").value;
 
-  document.getElementById("status").innerText = "Fetching...";
+async function fetchChannel(){
 
-  const res = await fetch("/fetch-channel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channelUrl: url })
-  });
+const url=document.getElementById("channelUrl").value;
 
-  const data = await res.json();
-
-  document.getElementById("status").innerText =
-    "Fetched " + data.totalVideos + " videos.";
-
-  loadVideos();
+if(!url){
+alert("Enter channel URL");
+return;
 }
 
-async function loadVideos() {
-  const res = await fetch("/videos");
-  const data = await res.json();
+document.getElementById("status").innerText="Fetching videos...";
 
-  const tbody = document.querySelector("#videoTable tbody");
-  tbody.innerHTML = "";
+const res=await fetch("/fetch-channel",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({channelUrl:url})
+});
 
-  data.forEach(video => {
-    const row = `
-      <tr>
-        <td>${video.title}</td>
-        <td><a href="${video.link}" target="_blank">Watch</a></td>
-        <td>${video.publishedAt}</td>
-      </tr>
-    `;
-    tbody.innerHTML += row;
-  });
+if(res.status===429){
+
+document.getElementById("status").innerText="Another request is running. Please wait.";
+
+return;
 }
 
-function downloadCSV() {
-  window.location.href = "/download-csv";
+const data=await res.json();
+
+document.getElementById("status").innerText="Fetched "+data.totalVideos+" videos.";
+
+loadVideos();
 }
+
+async function loadVideos(){
+
+const res=await fetch("/videos");
+
+const data=await res.json();
+
+const tbody=document.querySelector("#videoTable tbody");
+
+tbody.innerHTML="";
+
+data.forEach(video=>{
+
+const row=`
+<tr>
+<td>${video.title}</td>
+<td><a href="${video.link}" target="_blank">Watch</a></td>
+<td>${video.uploadDate}</td>
+<td>${video.views}</td>
+<td>${video.likes}</td>
+<td>${video.comments}</td>
+<td>${video.duration}</td>
+</tr>
+`;
+
+tbody.innerHTML+=row;
+
+});
+
+}
+
+function downloadCSV(){
+
+window.location.href="/download-csv";
+
+}
+
 </script>
 
 </body>
